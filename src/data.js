@@ -1,4 +1,4 @@
-export const VERSION='0.0.0.0';
+export const VERSION='0.0.0.1';
 export const STAT_LABELS={shot:'Удар',pass:'Пас',dribble:'Дриблинг',control:'Контроль мяча',tackle:'Отбор',intercept:'Перехват',block:'Блок',aerial:'Игра в воздухе',jump:'Прыжок',strength:'Сила',speed:'Скорость',stamina:'Выносливость',keeping:'Реакция'};
 export const BRANCHES={
  finisher:{name:'Завершитель',icon:'✦',description:'Удар +7, контроль +3 за ранг. «Дуга сокола» → «Комета» → «Сверхновая».',skills:['Дуга сокола','Комета','Сверхновая']},
