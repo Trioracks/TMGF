@@ -1,0 +1,16 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {createCareer,nextFixture,finishMatch,advanceSeason,upgradePlayer,table} from '../src/career.js';
+import {encodeSave,decodeSave} from '../src/storage.js';
+import {createMatch} from '../src/engine.js';
+function career(){const c=createCareer('Северный свет',77);assert.ok(c?.team,'Нужна новая карьера');return c;}
+function win(c){const f=nextFixture(c);assert.ok(f?.team);const m=createMatch(c.team,f.team,f.seed);m.fixtureId=f.id;m.status='finished';m.minute=90;m.score=[3,0];return finishMatch(c,m);}
+test('новый клуб начинает в третьем дивизионе и имеет соперника',()=>{const c=career();assert.equal(c.division,0);assert.equal(c.season,1);assert.ok(nextFixture(c).team);});
+test('результат записывается ровно один раз',()=>{const c=career(),f=nextFixture(c),m=createMatch(c.team,f.team,f.seed);m.fixtureId=f.id;m.status='finished';m.minute=90;m.score=[2,0];const n=finishMatch(c,m);assert.equal(n.round,1);assert.equal(n.standings[0].points,3);assert.deepEqual(finishMatch(n,m),n);});
+test('незавершённый и чужой матч нельзя засчитать',()=>{const c=career(),f=nextFixture(c),m=createMatch(c.team,f.team,f.seed);m.fixtureId='wrong';assert.deepEqual(finishMatch(c,m),c);m.status='finished';assert.deepEqual(finishMatch(c,m),c);});
+test('за матч начисляется опыт и на втором уровне можно выбрать ветку',()=>{let c=win(career());c=win(c);const p=c.team.players[9];assert.equal(p.level,2);assert.equal(p.points,1);const n=upgradePlayer(c,9,'conductor');assert.equal(n.team.players[9].talents.conductor,1);assert.equal(n.team.players[9].points,0);assert.deepEqual(upgradePlayer(n,9,'conductor'),n);});
+test('победы в сезоне дают повышение и новый календарь',()=>{let c=career();for(let i=0;i<6;i++)c=win(c);assert.equal(nextFixture(c),null);assert.equal(table(c)[0].id,0);c=advanceSeason(c);assert.equal(c.division,1);assert.equal(c.round,0);assert.equal(c.season,2);assert.ok(nextFixture(c));});
+test('ранний переход сезона не сбрасывает результаты',()=>{const c=career();assert.deepEqual(advanceSeason(c),c);});
+test('высшая лига открывает кубки и после кубков начинается новый сезон',()=>{let c=career();c.division=3;for(let i=0;i<6;i++)c=win(c);assert.equal(nextFixture(c).kind,'cup');let count=0;while(nextFixture(c)&&count++<10)c=win(c);assert.ok(count>=2&&count<10);const n=advanceSeason(c);assert.equal(n.season,2);assert.ok(n.trophies.length>=2);});
+test('сохранение восстанавливает карьеру, RNG и незаконченный матч',()=>{const c=career(),f=nextFixture(c),m=createMatch(c.team,f.team,f.seed);m.fixtureId=f.id;const save={career:c,match:m};const restored=decodeSave(encodeSave(save));assert.deepEqual(restored,save);});
+test('повреждённые и несовместимые сохранения отклоняются',()=>{assert.equal(decodeSave('{'),null);assert.equal(decodeSave('{"schema":99}'),null);const c=career();c.team.players[0].stats.aerial=NaN;assert.equal(decodeSave(encodeSave({career:c,match:null})),null);});
+test('имена очищаются, а отрицательные очки развития отклоняются при импорте',()=>{const c=createCareer('<script>тест</script>',1);assert.ok(!c.team.name.includes('<'));c.team.players[0].points=-1;assert.equal(decodeSave(encodeSave({career:c,match:null})),null);});
